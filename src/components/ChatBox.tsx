@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useState, useRef } from 'react';
-import ChatMessage from '@/components/ChatMessage';
 import { useChatStore } from '@/lib/store';
 import { getSocket } from '@/lib/socket';
-import { onAuthStateChanged, updateProfile, User } from "firebase/auth";
-import { auth, db } from "@/lib/firebase";
-import { collection, query, orderBy, getDocs, Timestamp } from "firebase/firestore";
+import { updateProfile } from "firebase/auth";
+import { db } from "@/lib/firebase";
+import { Timestamp, collection, query, orderBy, getDocs } from "firebase/firestore";
 import LoginButton from '@/components/LoginButton';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import { useRouter } from 'next/navigation';
+import { useEffect, useState, useRef } from 'react';
+import ChatMessage from '@/components/ChatMessage';
 
 const socket = getSocket();
 
@@ -24,7 +24,12 @@ export default function ChatBox() {
   const { room, setRoom } = useChatStore();
   const user = useAuthUser();
   const router = useRouter();
-  const [messages, setMessages] = useState<any[]>([]);
+  type Message = {
+    user: string;
+    message: string;
+    timestamp: Timestamp;
+  };
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [showNamePrompt, setShowNamePrompt] = useState(false);
   const [tempName, setTempName] = useState("");
@@ -48,12 +53,14 @@ export default function ChatBox() {
         );
         const snapshot = await getDocs(messagesQuery);
         const msgs = snapshot.docs.map((doc) => {
-          const data = doc.data();
+          const data = doc.data() as Message;
+          const ts = data.timestamp as Timestamp | { seconds: number } | undefined;
           return {
             ...data,
-            timestamp: data.timestamp instanceof Timestamp
-              ? data.timestamp
-              : Timestamp.fromMillis(data.timestamp?.seconds * 1000 || Date.now()),
+            timestamp:
+              ts instanceof Timestamp
+                ? ts
+                : Timestamp.fromMillis((ts && "seconds" in ts ? ts.seconds * 1000 : Date.now())),
           };
         });
         setMessages(msgs);

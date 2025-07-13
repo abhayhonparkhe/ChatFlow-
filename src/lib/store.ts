@@ -3,14 +3,18 @@ import { persist } from 'zustand/middleware';
 
 
 
-export const useChatStore = create(
+type ChatStore = {
+  room: string;
+  setRoom: (room: string) => void;
+};
+export const useChatStore = create<ChatStore>()(
   persist(
     (set) => ({
       room: '',
       setRoom: (room: string) => set({ room }),
     }),
     {
-      name: 'chat-storage', // LocalStorage key
+      name: 'chat-storage',
     }
   )
 );
