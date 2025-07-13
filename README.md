@@ -1,5 +1,7 @@
 # ChatFlow - Real-time Chat Application
 
+to use this app go to https://chat-flow-v2.vercel.app/ or see installation steps below 
+
 A beautiful, modern real-time chat application with macOS-inspired design built with Next.js, Firebase, and Socket.IO.
 
 ## Project Information
