@@ -3,7 +3,12 @@
   "routes": [
     {
       "src": "/api/socket",
-      "dest": "/api/socket"
+      "dest": "/api/socket.ts",
+      "headers": {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type"
+      }
     },
     {
       "src": "/(.*)",
@@ -15,7 +20,7 @@
   },
   "functions": {
     "src/pages/api/socket.ts": {
-      "maxDuration": 30
+      "maxDuration": 60
     }
   }
-} 
+}

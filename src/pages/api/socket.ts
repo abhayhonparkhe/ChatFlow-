@@ -7,7 +7,7 @@ import {
   addDoc, 
   collection, 
   serverTimestamp,
-  getDoc  // Add this import
+  getDoc
 } from 'firebase/firestore';
 
 // Add custom type for socket server
@@ -29,6 +29,7 @@ interface NextApiResponseWithSocket extends NextApiResponse {
 export const config = {
   api: {
     bodyParser: false,
+    externalResolver: true, // Add this
   },
 };
 
@@ -39,10 +40,15 @@ const ioHandler = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
       path: '/api/socket',
       addTrailingSlash: false,
       cors: {
-        origin: '*',
+        origin: process.env.NEXT_PUBLIC_VERCEL_URL 
+          ? [`https://${process.env.NEXT_PUBLIC_VERCEL_URL}`]
+          : ['http://localhost:3000'],
         methods: ['GET', 'POST'],
+        credentials: true
       },
-      transports: ['websocket'],
+      transports: ['polling', 'websocket'],
+      pingTimeout: 60000,
+      pingInterval: 25000
     });
 
     io.on('connection', (socket) => {
@@ -106,6 +112,16 @@ const ioHandler = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
 
     res.socket.server.io = io;
   }
+
+  // Handle OPTIONS request
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.status(200).end();
+    return;
+  }
+
   res.end();
 };
 
