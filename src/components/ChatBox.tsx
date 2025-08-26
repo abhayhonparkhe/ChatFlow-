@@ -75,11 +75,23 @@ export default function ChatBox() {
     loadMessages();
 
     socket.on("chatMessage", (msg) => {
-      const fixedMsg = {
-        ...msg,
-        timestamp: Timestamp.fromMillis(msg.timestamp?.seconds * 1000 || Date.now()),
-      };
-      setMessages((prev) => [...prev, fixedMsg]);
+      setMessages((prev) => {
+        const msgExists = prev.some(m => 
+          m.timestamp.seconds === msg.timestamp.seconds && 
+          m.message === msg.message &&
+          m.user === msg.user
+        );
+        
+        if (msgExists) return prev;
+        
+        return [...prev, {
+          user: msg.user,
+          message: msg.message,
+          timestamp: msg.timestamp instanceof Timestamp 
+            ? msg.timestamp 
+            : Timestamp.fromMillis(msg.timestamp?.seconds * 1000 || Date.now()),
+        }];
+      });
     });
 
     return () => {
@@ -100,13 +112,35 @@ export default function ChatBox() {
   const sendMessage = () => {
     if (!input.trim()) return;
 
-    socket.emit('chatMessage', {
-      message: input,
-      username,
-      room,
-    });
+    try {
+      const messageData = {
+        message: input.trim(),
+        username,
+        room,
+        timestamp: Date.now(),
+      };
 
-    setInput('');
+      // Optimistic update
+      const localMessage = {
+        user: username,
+        message: input.trim(),
+        timestamp: Timestamp.fromMillis(Date.now()),
+      };
+
+      setMessages(prev => [...prev, localMessage]);
+      setInput('');
+
+      // Emit with acknowledgment
+      socket.emit('chatMessage', messageData, (error: any) => {
+        if (error) {
+          console.error('Error sending message:', error);
+          // Optionally remove the message from the local state if it failed
+          setMessages(prev => prev.filter(msg => msg !== localMessage));
+        }
+      });
+    } catch (error) {
+      console.error('Error in sendMessage:', error);
+    }
   };
 
   const handleSetUsername = async () => {
