@@ -3,7 +3,12 @@ import { Server as SocketIOServer } from 'socket.io';
 import { Server as NetServer } from 'http';
 import { NextApiRequest, NextApiResponse } from 'next';
 import { db } from '@/lib/firebase';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { 
+  addDoc, 
+  collection, 
+  serverTimestamp,
+  getDoc  // Add this import
+} from 'firebase/firestore';
 
 // Add custom type for socket server
 import { Socket as NetSocket } from 'net';
@@ -54,22 +59,29 @@ const ioHandler = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
         room: string;
       }) => {
         try {
+          // Create message data
+          const messageData = {
+            user: data.username,
+            message: data.message,
+            timestamp: serverTimestamp(),
+          };
+
           // Add message to Firestore
           const docRef = await addDoc(
             collection(db, 'rooms', data.room, 'messages'),
-            {
-              user: data.username,
-              message: data.message,
-              timestamp: serverTimestamp(),
-            }
+            messageData
           );
+
+          // Get the document snapshot using getDoc
+          const docSnapshot = await getDoc(docRef);
+          const savedData = docSnapshot.data();
 
           // Broadcast to room with proper typing
           io.to(data.room).emit('chatMessage', {
             id: docRef.id,
             user: data.username,
             message: data.message,
-            timestamp: {
+            timestamp: savedData?.timestamp || {
               seconds: Math.floor(Date.now() / 1000),
               nanoseconds: 0,
             },

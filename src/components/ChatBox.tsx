@@ -19,16 +19,18 @@ function useIsHydrated() {
   return hydrated;
 }
 
+type Message = {
+  id: string;
+  user: string;
+  message: string;
+  timestamp: Timestamp;
+};
+
 export default function ChatBox() {
   const hydrated = useIsHydrated();
   const { room, setRoom } = useChatStore();
   const user = useAuthUser();
   const router = useRouter();
-  type Message = {
-    user: string;
-    message: string;
-    timestamp: Timestamp;
-  };
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [showNamePrompt, setShowNamePrompt] = useState(false);
@@ -45,24 +47,32 @@ export default function ChatBox() {
     if (!room) return;
 
     const loadMessages = async () => {
+      if (!room) return;
+      
       setIsLoading(true);
       try {
         const messagesQuery = query(
           collection(db, "rooms", room, "messages"),
-          orderBy("timestamp")
+          orderBy("timestamp", "asc") // Ensure messages are in order
         );
+        
         const snapshot = await getDocs(messagesQuery);
         const msgs = snapshot.docs.map((doc) => {
-          const data = doc.data() as Message;
-          const ts = data.timestamp as Timestamp | { seconds: number } | undefined;
+          const data = doc.data();
           return {
-            ...data,
-            timestamp:
-              ts instanceof Timestamp
-                ? ts
-                : Timestamp.fromMillis((ts && "seconds" in ts ? ts.seconds * 1000 : Date.now())),
+            id: doc.id,
+            user: data.user,
+            message: data.message,
+            timestamp: data.timestamp instanceof Timestamp
+              ? data.timestamp
+              : Timestamp.fromMillis(
+                  typeof data.timestamp === 'object' && data.timestamp?.seconds 
+                    ? data.timestamp.seconds * 1000 
+                    : Date.now()
+                ),
           };
         });
+        
         setMessages(msgs);
       } catch (error) {
         console.error("Error loading messages:", error);
@@ -72,25 +82,25 @@ export default function ChatBox() {
     };
 
     socket.emit("joinRoom", room);
-    loadMessages();
+    loadMessages(); // Load existing messages
 
     socket.on("chatMessage", (msg) => {
       setMessages((prev) => {
-        const msgExists = prev.some(m => 
-          m.timestamp.seconds === msg.timestamp.seconds && 
-          m.message === msg.message &&
-          m.user === msg.user
-        );
-        
-        if (msgExists) return prev;
-        
-        return [...prev, {
+        // Check if message already exists
+        if (prev.some(m => m.id === msg.id)) {
+          return prev;
+        }
+
+        const newMsg = {
+          id: msg.id,
           user: msg.user,
           message: msg.message,
-          timestamp: msg.timestamp instanceof Timestamp 
-            ? msg.timestamp 
+          timestamp: msg.timestamp instanceof Timestamp
+            ? msg.timestamp
             : Timestamp.fromMillis(msg.timestamp?.seconds * 1000 || Date.now()),
-        }];
+        };
+
+        return [...prev, newMsg];
       });
     });
 
@@ -114,32 +124,15 @@ export default function ChatBox() {
 
     try {
       const messageData = {
-        message: input.trim(),
         username,
-        room,
-        timestamp: Date.now(),
-      };
-
-      // Optimistic update
-      const localMessage = {
-        user: username,
         message: input.trim(),
-        timestamp: Timestamp.fromMillis(Date.now()),
+        room,
       };
 
-      setMessages(prev => [...prev, localMessage]);
+      socket.emit('chatMessage', messageData);
       setInput('');
-
-      // Emit with acknowledgment
-      socket.emit('chatMessage', messageData, (error: any) => {
-        if (error) {
-          console.error('Error sending message:', error);
-          // Optionally remove the message from the local state if it failed
-          setMessages(prev => prev.filter(msg => msg !== localMessage));
-        }
-      });
     } catch (error) {
-      console.error('Error in sendMessage:', error);
+      console.error('Error sending message:', error);
     }
   };
 
