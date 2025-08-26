@@ -1,32 +1,23 @@
 // lib/socket.ts
-import { io, Socket } from "socket.io-client";
+import { io } from "socket.io-client";
 
-let socket: Socket;
+const baseURL = process.env.NODE_ENV === 'production' 
+  ? process.env.NEXT_PUBLIC_SOCKET_URL 
+  : '';
 
 export const getSocket = () => {
-  if (!socket) {
-    // Get the base URL for WebSocket connection
-    const baseURL = process.env.NEXT_PUBLIC_VERCEL_URL
-      ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
-      : 'http://localhost:3000';
+  const socket = io(baseURL, {
+    path: "/api/socket",
+    addTrailingSlash: false,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000,
+    transports: ["websocket", "polling"], // Allow both WebSocket and polling
+    autoConnect: true,
+  });
 
-    socket = io(baseURL, {
-      path: "/api/socket",
-      addTrailingSlash: false,
-      reconnectionDelay: 1000,
-      reconnectionAttempts: 5,
-      timeout: 20000,
-      transports: ['polling', 'websocket'] // Start with polling, then upgrade to websocket
-    });
+  socket.on("connect_error", (err) => {
+    console.error("Socket connection error:", err);
+  });
 
-    // Debug listeners
-    socket.on('connect', () => {
-      console.log('Socket connected successfully');
-    });
-
-    socket.on('connect_error', (err) => {
-      console.error('Socket connection error:', err);
-    });
-  }
   return socket;
 };
