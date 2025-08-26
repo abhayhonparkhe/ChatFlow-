@@ -1,17 +1,22 @@
 import { create } from "zustand";
 import { persist } from 'zustand/middleware';
 
-
-
-type ChatStore = {
+interface ChatStore {
+  username: string;
   room: string;
+  setUsername: (username: string) => void;
   setRoom: (room: string) => void;
-};
-export const useChatStore = create<ChatStore>()(
-  persist(
+  clearStore: () => void; // Add this
+}
+
+export const useChatStore = create(
+  persist<ChatStore>(
     (set) => ({
+      username: '',
       room: '',
+      setUsername: (username: string) => set({ username }),
       setRoom: (room: string) => set({ room }),
+      clearStore: () => set({ username: '', room: '' }), // Add this
     }),
     {
       name: 'chat-storage',

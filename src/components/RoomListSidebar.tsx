@@ -6,6 +6,7 @@ import { db } from "@/lib/firebase";
 import { useChatStore } from "@/lib/store";
 import { useRouter } from "next/navigation";
 import { useAuthUser } from "@/lib/hooks/useAuthUser";
+import LogoutButton from "./LogoutButton";
 
 export default function RoomSidebar() {
   const [rooms, setRooms] = useState<string[]>([]);
@@ -178,6 +179,11 @@ export default function RoomSidebar() {
               {filteredRooms.length} room{filteredRooms.length !== 1 ? 's' : ''} available
             </p>
           </div>
+        </div>
+
+        {/* Logout Button */}
+        <div className="mt-auto pt-4 border-t">
+          <LogoutButton />
         </div>
       </aside>
     </>
