@@ -2,20 +2,11 @@
   "version": 2,
   "routes": [
     {
-      "src": "/api/socket",
-      "dest": "/api/socket.ts"
-    },
-    {
       "src": "/(.*)",
       "dest": "/$1"
     }
   ],
   "env": {
     "NODE_ENV": "production"
-  },
-  "functions": {
-    "src/pages/api/socket.ts": {
-      "maxDuration": 60
-    }
   }
 }

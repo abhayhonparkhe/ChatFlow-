@@ -1,17 +1,14 @@
 "use client";
 
 import { useChatStore } from '@/lib/store';
-import { getSocket } from '@/lib/socket';
 import { updateProfile } from "firebase/auth";
 import { db } from "@/lib/firebase";
-import { Timestamp, collection, query, orderBy, getDocs } from "firebase/firestore";
+import { Timestamp, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp } from "firebase/firestore";
 import LoginButton from '@/components/LoginButton';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import ChatMessage from '@/components/ChatMessage';
-
-const socket = getSocket();
 
 function useIsHydrated() {
   const [hydrated, setHydrated] = useState(false);
@@ -40,25 +37,18 @@ export default function ChatBox() {
   const username = user?.displayName ?? "Anonymous";
 
   useEffect(() => {
-    fetch('/api/socket');
-  }, []);
-
-  useEffect(() => {
     if (!room) return;
+    setIsLoading(true);
+    const messagesQuery = query(
+      collection(db, "rooms", room, "messages"),
+      orderBy("timestamp", "asc")
+    );
 
-    const loadMessages = async () => {
-      if (!room) return;
-      
-      setIsLoading(true);
-      try {
-        const messagesQuery = query(
-          collection(db, "rooms", room, "messages"),
-          orderBy("timestamp", "asc") // Ensure messages are in order
-        );
-        
-        const snapshot = await getDocs(messagesQuery);
+    const unsubscribe = onSnapshot(
+      messagesQuery,
+      (snapshot) => {
         const msgs = snapshot.docs.map((doc) => {
-          const data = doc.data();
+          const data = doc.data() as any;
           return {
             id: doc.id,
             user: data.user,
@@ -72,41 +62,16 @@ export default function ChatBox() {
                 ),
           };
         });
-        
         setMessages(msgs);
-      } catch (error) {
+        setIsLoading(false);
+      },
+      (error) => {
         console.error("Error loading messages:", error);
-      } finally {
         setIsLoading(false);
       }
-    };
+    );
 
-    socket.emit("joinRoom", room);
-    loadMessages(); // Load existing messages
-
-    socket.on("chatMessage", (msg) => {
-      setMessages((prev) => {
-        // Check if message already exists
-        if (prev.some(m => m.id === msg.id)) {
-          return prev;
-        }
-
-        const newMsg = {
-          id: msg.id,
-          user: msg.user,
-          message: msg.message,
-          timestamp: msg.timestamp instanceof Timestamp
-            ? msg.timestamp
-            : Timestamp.fromMillis(msg.timestamp?.seconds * 1000 || Date.now()),
-        };
-
-        return [...prev, newMsg];
-      });
-    });
-
-    return () => {
-      socket.off("chatMessage");
-    };
+    return () => unsubscribe();
   }, [room]);
 
   useEffect(() => {
@@ -119,17 +84,15 @@ export default function ChatBox() {
     }
   }, [user]);
 
-  const sendMessage = () => {
-    if (!input.trim()) return;
+  const sendMessage = async () => {
+    if (!input.trim() || !room) return;
 
     try {
-      const messageData = {
-        username,
+      await addDoc(collection(db, "rooms", room, "messages"), {
+        user: username,
         message: input.trim(),
-        room,
-      };
-
-      socket.emit('chatMessage', messageData);
+        timestamp: serverTimestamp(),
+      });
       setInput('');
     } catch (error) {
       console.error('Error sending message:', error);
