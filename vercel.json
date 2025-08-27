@@ -3,12 +3,7 @@
   "routes": [
     {
       "src": "/api/socket",
-      "dest": "/api/socket.ts",
-      "headers": {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type"
-      }
+      "dest": "/api/socket.ts"
     },
     {
       "src": "/(.*)",

@@ -1,3 +1,4 @@
+// src/lib/socket.ts
 import { io } from "socket.io-client";
 
 export const getSocket = () => {
@@ -6,10 +7,10 @@ export const getSocket = () => {
     addTrailingSlash: false,
     reconnectionAttempts: 5,
     reconnectionDelay: 1000,
-    // Important for Vercel: use long-polling only
-    transports: ["polling"],
-    upgrade: false,
+    transports: ["polling"],    // force polling on Vercel
+    upgrade: false,             // don't try websocket
     autoConnect: true,
+    withCredentials: false,     // keep CORS simple
   });
 
   socket.on("connect_error", (err) => {

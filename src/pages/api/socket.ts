@@ -50,9 +50,9 @@ const ioHandler = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
       path: "/api/socket",
       addTrailingSlash: false,
       cors: {
-        origin: allowedOrigins,
+        origin: "*",              // allow all (safe since we don't use cookies)
         methods: ["GET", "POST"],
-        credentials: true,
+        credentials: false,
       },
       transports: ["polling", "websocket"],
       pingTimeout: 60000,
