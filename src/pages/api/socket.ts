@@ -36,19 +36,27 @@ export const config = {
 const ioHandler = (req: NextApiRequest, res: NextApiResponseWithSocket) => {
   if (!res.socket?.server.io) {
     const httpServer: NetServer = res.socket.server as any;
+
+    const deploymentHost =
+      process.env.VERCEL_URL || process.env.NEXT_PUBLIC_VERCEL_URL || "";
+    
+    const allowedOrigins = [
+      deploymentHost ? `https://${deploymentHost}` : null,
+      process.env.NEXT_PUBLIC_SITE_URL || null, // optional if you have a custom domain env
+      "http://localhost:3000",
+    ].filter(Boolean) as string[];
+    
     const io = new SocketIOServer(httpServer, {
-      path: '/api/socket',
+      path: "/api/socket",
       addTrailingSlash: false,
       cors: {
-        origin: process.env.NEXT_PUBLIC_VERCEL_URL 
-          ? [`https://${process.env.NEXT_PUBLIC_VERCEL_URL}`]
-          : ['http://localhost:3000'],
-        methods: ['GET', 'POST'],
-        credentials: true
+        origin: allowedOrigins,
+        methods: ["GET", "POST"],
+        credentials: true,
       },
-      transports: ['polling', 'websocket'],
+      transports: ["polling", "websocket"],
       pingTimeout: 60000,
-      pingInterval: 25000
+      pingInterval: 25000,
     });
 
     io.on('connection', (socket) => {
